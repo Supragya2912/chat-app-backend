@@ -30,6 +30,12 @@ if(process.env.NODE_ENV === 'development'){
     app.use(morgan('dev'));
 }
 
+process.on('uncaughtException', err => {
+    console.log('UNCAUGHT EXCEPTION! Shutting down...');
+    console.log(err.name, err.message);
+    process.exit(1);
+});
+
 const limiter = rateLimit({
     max: 3000,
     windowMs: 60 * 60 * 1000,
