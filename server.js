@@ -9,8 +9,10 @@ const morgan = require('morgan');
 const xss = require('xss');
 const cors = require('cors');
 const { mongo } = require('mongoose');
-
+const {connectToDB } = require('./db');
 const port = process.env.PORT;
+
+connectToDB();
 
 
 app.use(mongoSanitize());
