@@ -11,6 +11,7 @@ const cors = require('cors');
 const { mongo } = require('mongoose');
 const {connectToDB } = require('./db');
 const port = process.env.PORT;
+const routes = require('./routes/index')
 
 connectToDB();
 
@@ -45,6 +46,8 @@ const limiter = rateLimit({
 })
 app.use("/tawk", limiter);
 
+
+app.use(routes);
 
 
 app.get('/', (req, res) => {

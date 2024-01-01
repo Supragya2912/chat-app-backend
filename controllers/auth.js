@@ -2,8 +2,7 @@ const jwt = require('jsonwebtoken');
 const User = require("../models/user");
 const filter = require('../utils/filterObj');
 const otp_generator = require('otp-generator');
-
-
+const mailService = require("../services/mailer");
 
 
 const signToken = (userId) => jwt.sign({ userId }, process.env.JWT_SECRET)
@@ -37,7 +36,6 @@ exports.register = async (req, res, next) => {
 
 }
 
-
 exports.sendOTP = async (req, res, next) => {
 
     const { userId } = req;
@@ -50,6 +48,15 @@ exports.sendOTP = async (req, res, next) => {
     });
 
     //SEND MAIL
+
+    mailService.sendMail({
+        from : "anandsupragya@gmail.com",
+        to: "example@gmail.com",
+        subject: "OTP for Login",
+        text: `Your otp is ${new_otp} and will be valid for 10 minutes`,
+
+    })
+
 
     res.status(200).json({
         status: "success",
@@ -136,7 +143,6 @@ exports.protect = async (req, res, next) => {
     }
     else if (req.cookies.jwt) {
         token = req.cookies.jwt;
-
     }
     else {
         req.status(400).json({
