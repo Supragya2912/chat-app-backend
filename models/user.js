@@ -56,13 +56,25 @@ const userSchema = new mongoose.Schema({
         default: false
     },
     otp :{
-        type: Number
+        type: String,
     },
     otp_expiry:{
         type: Date
     },
 
 });
+
+userSchema.pre('save', async function (next) {
+  
+    if (!this.isModified('password')) return next();
+
+   
+    const salt = await bcrypt.genSalt(12);
+    this.password = await bcrypt.hash(this.password, salt);
+
+    next();
+});
+
 
 userSchema.pre("save", async function(next)  {
 

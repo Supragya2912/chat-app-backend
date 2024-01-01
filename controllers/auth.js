@@ -3,6 +3,8 @@ const User = require("../models/user");
 const filter = require('../utils/filterObj');
 const otp_generator = require('otp-generator');
 const mailService = require("../services/mailer");
+const crypto = require("crypto");
+
 
 
 const signToken = (userId) => jwt.sign({ userId }, process.env.JWT_SECRET)
@@ -14,23 +16,35 @@ exports.register = async (req, res, next) => {
 
     const filteredBody = filter(req.body, "firstName", "lastName", "email", "password");
 
+
     const existing_user = await User.findOne({ email: email });
+ 
 
     if (existing_user && existing_user.verified) {
         res.status(400).json({
             status: "error",
             message: "Email already in use, please login"
         })
+   
     }
     else if (existing_user) {
         await User.findOneAndUpdate({ email: email }, filteredBody, { new: true, validateModifiedOnly: true });
 
         req.userId = existing_user._id;
+       res.status(401).json({
+        status: "error",
+        message:"User already exists"
+       })
         next();
     } else {
 
         const new_user = await User.create(filteredBody);
         req.userId = new_user._id;
+        // res.status(200).json({
+        //     status: "success",
+        //     message: "User created successfully"
+        // })
+      
         next();
     }
 
@@ -39,28 +53,34 @@ exports.register = async (req, res, next) => {
 exports.sendOTP = async (req, res, next) => {
 
     const { userId } = req;
-    const new_otp = otp_generator.generate(6, { upperCaseAlphabets: false, specialChars: false, alphabets: false });
+    const new_otp = otp_generator.generate(6, { upperCaseAlphabets: false, specialChar: false, alphabets: false });
     const otp_expiry = Date.now() + 10 * 60 * 1000;
 
-    await User.findByIdAndUpdate(userId, {
+    
+    const user =  await User.findByIdAndUpdate(userId, {
+       
         otp: new_otp,
         otp_expiry
     });
+    user.otp = new_otp.toString();
+    await user.save({new : true , validateModifiedOnly : true});
+   
 
     //SEND MAIL
 
-    mailService.sendMail({
-        from : "anandsupragya@gmail.com",
-        to: "example@gmail.com",
-        subject: "OTP for Login",
-        text: `Your otp is ${new_otp} and will be valid for 10 minutes`,
+    // mailService.sendMail({
+    //     from : "anandsupragya@gmail.com",
+    //     to: User.email,
+    //     subject: "OTP for Login",
+    //     text: `Your otp is ${new_otp} and will be valid for 10 minutes`,
 
-    })
+    // })
 
 
     res.status(200).json({
         status: "success",
-        message: "OTP sent successfully"
+        message: "OTP sent successfully",
+        otp: new_otp
     })
 
 }
@@ -83,6 +103,7 @@ exports.verifyOTP = async (req, res, next) => {
         })
     }
 
+
     if (!await user.correctOTP(otp, user.otp)) {
         res.status(400).json({
             status: "error",
@@ -91,7 +112,6 @@ exports.verifyOTP = async (req, res, next) => {
     }
 
     user.verified = true;
-    user.otp = undefined;
 
     await user.save({ new: true, validateModifiedOnly: true })
 
@@ -104,35 +124,47 @@ exports.verifyOTP = async (req, res, next) => {
 }
 
 exports.login = async (req, res, next) => {
-
-
     const { email, password } = req.body;
-
+  
+  
+  
     if (!email || !password) {
-        return res.status(400).json({
-            status: "error",
-            message: "Please provide email and password"
-        })
+      res.status(400).json({
+        status: "error",
+        message: "Both email and password are required",
+      });
+      return;
     }
-
-    const userDoc = await User.findOne({ email: email }).select({ password: password });
-
-    if (!userDoc || !(await userDoc.correctPassword(password, userDoc.password))) {
-        return res.status(400).json({
-            status: "error",
-            message: "Email or password is incorrect"
-        })
+  
+    const user = await User.findOne({ email: email }).select("+password");
+  
+    if (!user || !user.password) {
+      res.status(400).json({
+        status: "error",
+        message: "Incorrect password",
+      });
+  
+      return;
     }
-
-    const token = signToken(userDoc._id);
+  
+    if (!user || !(await user.correctPassword(password, user.password))) {
+      res.status(400).json({
+        status: "error",
+        message: "Email or password is incorrect",
+      });
+  
+      return;
+    }
+  
+    const token = signToken(user._id);
+  
     res.status(200).json({
-        status: "success",
-        message: "Logged in successfully",
-        token
-    })
-
-
-}
+      status: "success",
+      message: "Logged in successfully!",
+      token,
+      user_id: user._id,
+    });
+  };
 
 
 exports.protect = async (req, res, next) => {
@@ -195,6 +227,8 @@ exports.forgotPassword = async (req, res, next) => {
     }
 
     const resetToken = user.createPasswordResetToken();
+    await user.save({validateBeforeSave:false});
+    console.log(resetToken);
     const resetURL = `https://tawk.com/auth/reset-password/?code=${resetToken}`;
 
 
@@ -218,36 +252,36 @@ exports.forgotPassword = async (req, res, next) => {
 }
 
 exports.resetPassword = async (req, res, next) => {
-
-    const hashedToken = crypto.createHash("sha256").update(req.params.token).digest("hex");
-
+    
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(req.body.token)
+      .digest("hex");
+  
     const user = await User.findOne({
-        passwordResetToken: hashedToken,
-        passwordResetExpires: { $gt: Date.now() },
-    })
-
+      passwordResetToken: hashedToken,
+      passwordResetExpires: { $gt: Date.now() },
+    });
+  
+ 
     if (!user) {
-        res.status(400).json({
-            status: "error",
-            message: "Token has expired"
-        })
-
-        return;
+      return res.status(400).json({
+        status: "error",
+        message: "Token is Invalid or Expired",
+      });
     }
-
     user.password = req.body.password;
     user.passwordConfirm = req.body.passwordConfirm;
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
-
     await user.save();
-
-
-    const token = signToken(user._id)
-
+  
+  
+    const token = signToken(user._id);
+  
     res.status(200).json({
-        status: "success",
-        message: "Password reset successfully",
-        token
-    })
-}
+      status: "success",
+      message: "Password Reset Successfully",
+      token,
+    });
+  };

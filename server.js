@@ -12,6 +12,8 @@ const { mongo } = require('mongoose');
 const {connectToDB } = require('./db');
 const port = process.env.PORT;
 const routes = require('./routes/index')
+const authRoute = require("./routes/auth");
+const userRoute = require("./routes/user");
 
 connectToDB();
 
@@ -47,7 +49,11 @@ const limiter = rateLimit({
 app.use("/tawk", limiter);
 
 
-app.use(routes);
+// app.use(routes);
+
+
+app.use("/user", userRoute);
+app.use("/auth", authRoute);
 
 
 app.get('/', (req, res) => {
