@@ -14,8 +14,19 @@ const port = process.env.PORT;
 const routes = require('./routes/index')
 const authRoute = require("./routes/auth");
 const userRoute = require("./routes/user");
+const { Server } = require('socket.io');
+const User = require("./models/user");
 
 connectToDB();
+
+const server = http.createServer(app);  // Create an HTTP server
+
+const io = socketIo(server,{
+  cors: {
+    origin: "http://localhost:3000",
+    methods:["GET", "POST"]
+  }
+});
 
 
 app.use(mongoSanitize());
@@ -62,4 +73,32 @@ app.get('/', (req, res) => {
 
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`)
+})
+
+io.on("connection", async (socket) =>{
+  
+  console.log(socket);
+
+  const user_id = socket.handshake.query["user_id"]
+
+  const socket_id = socket.id;
+
+  console.log(`User connected, ${socket_id}`);
+
+  if(user_id){
+    await User.findByIdAndUpdate(user_id,{  socket_id  })
+  }
+  
+  socket.on("friend_request", async(data) =>{
+    console.log(data.to);
+
+    const to = await User.findById(data.to);
+
+
+    io.to(to.socket_id).emit("new_friend_request",{
+      
+    });
+  })
+
+
 })

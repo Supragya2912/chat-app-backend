@@ -61,6 +61,15 @@ const userSchema = new mongoose.Schema({
     otp_expiry:{
         type: Date
     },
+    socket_id:{
+        type: String,
+    },
+    friends :[
+        {
+            type: mongoose.Schema.ObjectId,
+            ref: "User",
+        }
+    ]
 
 });
 
