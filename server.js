@@ -86,7 +86,7 @@ io.on("connection", async (socket) => {
   const socket_id = socket.id;
 
   if (Boolean(user_id)) {
-    await User.findByIdAndUpdate(user_id, { socket_id })
+    await User.findByIdAndUpdate(user_id, { socket_id, status: "Online" })
   }
 
   socket.on("friend_request", async (data) => {
@@ -136,13 +136,24 @@ io.on("connection", async (socket) => {
       message: "Request accepted successfully!",
     });
 
+  })
 
-    socket.on("end",function(){
-      console.log("disconnected");
-      socket.disconnect(0);
-    })
+  socket.on("text_message", (data) => {
+    console.log(data);
+  })
 
 
+  socket.on("end", async (data) => {
+
+    //find user by id and set the status to offline
+
+    if (data.user_id) {
+      await User.findByIdAndUpdate(data.user_id, { status: "Offline" })
+    }
+
+
+    console.log("disconnected");
+    socket.disconnect(0);
   })
 
 })

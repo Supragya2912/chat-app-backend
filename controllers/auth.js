@@ -119,7 +119,8 @@ exports.verifyOTP = async (req, res, next) => {
     res.status(200).json({
         status: "success",
         message: "OTP verified successfully",
-        token
+        token,
+        user_id: user._id
     })
 }
 
