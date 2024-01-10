@@ -17,6 +17,7 @@ const userRoute = require("./routes/user");
 const { Server } = require('socket.io');
 const User = require("./models/user");
 const http = require("http");
+const path = require("path");
 const FriendRequest = require('./models/friendRequest');
 
 connectToDB();
@@ -140,6 +141,37 @@ io.on("connection", async (socket) => {
 
   socket.on("text_message", (data) => {
     console.log(data);
+
+    //data => to and from
+
+    //create a new convo if it does not exist or add a new message to the message list 
+
+
+    //save to db
+
+
+    //emit incoming_message to user
+
+
+    //emit outgoing message from user
+
+
+
+  });
+
+  socket.on("file_message",(data) =>{
+
+    console.log(data);
+
+    //data =>{ to, from , text, file}
+
+    const fileExtension = path.extname(data.file.name)
+
+    //generate unique filename
+    const fileName = `${Date.now()}_${Math.floor(Math.random() * 1000)}${fileExtension}`;
+
+    //upload file 
+
   })
 
 
