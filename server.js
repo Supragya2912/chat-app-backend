@@ -19,6 +19,7 @@ const User = require("./models/user");
 const http = require("http");
 const path = require("path");
 const FriendRequest = require('./models/friendRequest');
+const OnetoOneMessage = require('./models/OnetoOneMessage');
 
 connectToDB();
 
@@ -139,6 +140,42 @@ io.on("connection", async (socket) => {
 
   })
 
+
+  socket.on("get_direct_conversations", async ({ user_id }, callback) => {
+    const existing_conversation = await OnetoOneMessage.find({
+      participants: { $all: [user_id] }
+    }).populate("participants", "firstName lastName _id email status");
+
+    callback(existing_conversation)
+  })
+
+
+  socket.on("start_conversations", async(data) => {
+
+    const {to, from} = data;
+
+    const existing_conversation = await OnetoOneMessage.find({
+      participants: { $size: 2, $all: [to, from] }
+    }).populate("participants", "firstName lastName _id email status");
+    
+
+    console.log(existing_conversation);
+
+
+    if(existing_conversation.length === 0){
+      let new_chat = await OnetoOneMessage.create({
+        participants: [to, from]
+      })
+      console.log(new_conversation);
+
+      new_chat = await OnetoOneMessage.findById(new_chat._id).populate("participants","firstName lastName _id email status");
+      socket.emit("start_chat",new_chat);
+    }else{
+      socket.emit("open_chat",existing_conversation[0]);
+    }
+
+  });
+
   socket.on("text_message", (data) => {
     console.log(data);
 
@@ -159,7 +196,7 @@ io.on("connection", async (socket) => {
 
   });
 
-  socket.on("file_message",(data) =>{
+  socket.on("file_message", (data) => {
 
     console.log(data);
 
